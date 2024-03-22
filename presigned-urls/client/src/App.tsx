@@ -8,16 +8,22 @@ function App() {
       onSubmit={async (e) => {
         e.preventDefault();
         const form = e.currentTarget;
-        const resp = await fetch("http://localhost:3000/signed-urls", {
-          method: "POST",
-        });
-
-        const { signedUrl, publicUrl } = await resp.json();
-
         const formData = new FormData(form);
         const file = formData.get("file") as File;
 
-        await fetch(signedUrl, {
+        const resp = await fetch("http://localhost:3000/presigned-urls", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            contentLength: file.size,
+          }),
+        });
+
+        const { presignedUrl, publicUrl } = await resp.json();
+
+        await fetch(presignedUrl, {
           method: "PUT",
           body: file,
         });

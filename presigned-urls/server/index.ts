@@ -13,6 +13,7 @@ const BUCKET_ENDPOINT = process.env.BUCKET_ENDPOINT as string;
 const BUCKET_NAME = process.env.BUCKET_NAME as string;
 
 const PORT = 3000;
+const FIVE_MB = 5 * 1024 * 1024;
 
 const s3Client = new S3Client({
   region: "auto",
@@ -25,15 +26,26 @@ const s3Client = new S3Client({
 
 const app = express();
 app.use(cors());
+app.use(express.json());
 
-app.post("/signed-urls", async (req, res) => {
+app.post("/presigned-urls", async (req, res) => {
+  const { contentLength } = req.body as { contentLength: number };
+
+  if (contentLength > FIVE_MB) {
+    return res.status(400).json({ error: "File size too large" });
+  }
+
   const bucketKey = randomBytes(16).toString("hex");
-  const signedUrl = await getSignedUrl(s3Client, new PutObjectCommand({ Bucket: BUCKET_NAME, Key: bucketKey }), {
-    expiresIn: 30,
-  });
+  const presignedUrl = await getSignedUrl(
+    s3Client,
+    new PutObjectCommand({ Bucket: BUCKET_NAME, Key: bucketKey, ContentLength: contentLength }),
+    {
+      expiresIn: 30,
+    }
+  );
   const publicUrl = `${BUCKET_PUBLIC_URL}/${bucketKey}`;
 
-  res.json({ signedUrl, publicUrl });
+  res.json({ presignedUrl, publicUrl });
 });
 
 app.listen(PORT, () => {
